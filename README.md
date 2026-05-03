@@ -1,15 +1,15 @@
 # Parallel Neural Network Training with MPI
 
-A from-scratch C++ implementation of data-parallel SGD for feedforward neural networks, with three hand-rolled MPI all-reduce algorithms (tree, ring, halving-doubling) for gradient aggregation. Includes a sequential / OpenMP baseline for comparison.
+A from-scratch C++ implementation of data-parallel stochastic gradient descent for feedforward neural networks, with three hand-rolled MPI all-reduce algorithms (tree, ring, halving-doubling) for gradient aggregation. Includes a sequential / OpenMP baseline for comparison.
 
-The point of the project is to make the communication side of distributed training visible: how much time goes into all-reduce versus compute, how the choice of all-reduce algorithm affects per-iteration cost, and how the alpha-beta cost model maps onto real measurements on a modern HPC system.
+The point of the project is to make the communication side of distributed training visible, and how the choice of all-reduce algorithm affects per-iteration cost and alpha-beta cost model maps onto real measurements on a modern HPC system.
 
-Trained on MNIST (~235K parameters, ~1.88 MB gradient buffer); benchmarked on Perlmutter CPU nodes.
+Trained on MNIST (~235K parameters, ~1.88 MB gradient buffer); benchmarked on Perlmutter CPU nodes. Results are only benchmarked on a single node, multi node Slingshot tests are TODO.
 
 ## Results
 
 ### OpenMP vs MPI strong scaling
-Same workload, varying worker count. OpenMP wins at this small model size because the per-rank compute is too small to amortize MPI's all-reduce cost; OpenMP scaling stops past 8 threads when threads cross NUMA boundaries.
+Same workload, varying worker count. OpenMP wins at this small model size because the per-rank compute is too small to amortize MPI's all-reduce cost; OpenMP scaling stops past 8 threads when threads cross NUMA boundaries. MPI should in theory overtake OpenMP when tested using multiple nodes (TODO for me to add results depicting this).
 
 ![OpenMP vs MPI strong scaling](docs/chart_openmp_vs_mpi.png)
 
@@ -19,7 +19,7 @@ Per-rank batch held at 64, global batch grows with rank count — the configurat
 ![MPI weak scaling](docs/chart_mpi_weak_scaling.png)
 
 ### All-reduce algorithm comparison
-Per-iteration cost for all four algorithms at P=8 on the same training workload. Compute is identical across algorithms; the entire difference lives in the all-reduce phase. Tree pays a 2·N·log(P) bandwidth penalty — at P=8 that's a 3× volume cost vs. ring's bandwidth-optimal 2·N·(P−1)/P.
+Per-iteration cost for all four algorithms at P=8 on the same training workload. Compute is identical across algorithms; the entire difference lives in the all-reduce phase. Tree pays a 2·N·log(P) bandwidth penalty. at P=8 that's a 3× volume cost vs. ring's bandwidth-optimal 2·N·(P−1)/P. Ring slightly loses to halving-doubling on my single node setup but I expect halving-doubling to outperform when benchmarked using multiple nodes because the latency gap widens and the NUMA-locality advantage that helps ring on a single node disappears once you're crossing the network.
 
 ![Algorithm comparison](docs/chart_mpi_algo_compare.png)
 
